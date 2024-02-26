@@ -4,6 +4,7 @@ import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.DocumentSnapshot
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.QuerySnapshot
@@ -71,8 +72,7 @@ class FireStoreRepositoryImpl @Inject constructor(val fireStore: FirebaseFiresto
         postData: PostData
     ): Resource<Boolean> {
         return try {
-            val postId = UUID.randomUUID()
-            fireStore.collection("posts").document(postId.toString()).set(postData).await()
+            fireStore.collection("posts").document(postData.postId).set(postData).await()
             Resource.Success(true)
         } catch (e: Exception) {
             e.printStackTrace()
@@ -106,6 +106,27 @@ class FireStoreRepositoryImpl @Inject constructor(val fireStore: FirebaseFiresto
             val result =
                 fireStore.collection("posts").document(postId).collection("likes").get().await()
             Resource.Success(result.toObjects(LikeData::class.java))
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Resource.Failure(e)
+        }
+    }
+
+    override suspend fun addLike(
+        postId: String,
+        uId: String,
+        isAvail: Boolean
+    ): Resource<Boolean> {
+        return try {
+            if (isAvail)
+                fireStore.collection("posts").document(postId)
+                    .update("likes", FieldValue.arrayRemove(uId)).await()
+            else
+                fireStore.collection("posts").document(postId)
+                    .update("likes", FieldValue.arrayUnion(uId)).await()
+
+            Resource.Success(true)
+
         } catch (e: Exception) {
             e.printStackTrace()
             Resource.Failure(e)

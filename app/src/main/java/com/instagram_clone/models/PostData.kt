@@ -9,5 +9,7 @@ data class PostData(
     val profileImage: String = "",
     val photoUrl: List<String> = emptyList(),
     val datePublished: Date = Date(System.currentTimeMillis()),
-    val description: String = ""
+    val description: String = "",
+    val likes: ArrayList<String> = ArrayList(),
+    val comments: Int = 0
 )

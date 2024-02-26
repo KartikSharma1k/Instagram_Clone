@@ -2,6 +2,7 @@ package com.instagram_clone
 
 import android.text.TextUtils
 import android.util.Patterns
+import com.instagram_clone.models.UserData
 import java.util.regex.Pattern
 
 object DataManager {
@@ -17,5 +18,7 @@ object DataManager {
         }
         return false
     }
+
+    var userData: UserData = UserData()
 
 }

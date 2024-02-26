@@ -93,6 +93,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.instagram_clone.DataManager
 import com.instagram_clone.models.PostData
 import com.instagram_clone.models.UserData
 import com.instagram_clone.repos.Resource
@@ -100,10 +101,6 @@ import com.instagram_clone.viewModels.ProfileViewModel
 
 @Composable
 fun ProfileScreen() {
-
-    var userData by remember {
-        mutableStateOf(UserData())
-    }
 
     var isLoading by remember {
         mutableStateOf(false)
@@ -117,31 +114,9 @@ fun ProfileScreen() {
 
     val profileViewModel: ProfileViewModel = hiltViewModel()
     LaunchedEffect(Unit) {
-        profileViewModel.getProfileData()
         profileViewModel.getPost()
     }
-    val userProfileFlow = profileViewModel.userProfileFlow.collectAsState()
     val postFlow = profileViewModel.postFlow.collectAsState()
-
-    userProfileFlow.let {
-        when (it.value) {
-            is Resource.Success -> {
-                userData = (it.value as Resource.Success<UserData>).result
-            }
-
-            Resource.Loading -> isLoading = true
-
-            is Resource.Failure -> {
-                Toast.makeText(
-                    _context,
-                    (it.value as Resource.Failure).exception.message,
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
-
-            else -> {}
-        }
-    }
 
     postFlow.let {
         when (it.value) {
@@ -165,7 +140,7 @@ fun ProfileScreen() {
 
 
     Scaffold(
-        topBar = { CustomTopAppBar(userData = userData) },
+        topBar = { CustomTopAppBar(userData = DataManager.userData) },
         containerColor = Color.Black
     ) {
         BoxWithConstraints(
@@ -185,7 +160,7 @@ fun ProfileScreen() {
             ) {
                 UserProfileView(
                     modifier = Modifier.padding(horizontal = 17.dp),
-                    userData = userData,
+                    userData = DataManager.userData,
                     postLength = postData.size
                 )
                 UserPostsView(
@@ -460,7 +435,8 @@ fun NetworkImageBorder(imageSize: Int, networkImage: String, description: String
             modifier = Modifier
                 .clip(shape = CircleShape)
                 .size(imageSize.dp),
-            contentScale = ContentScale.Crop
+            contentScale = ContentScale.Crop,
+            placeholder = painterResource(id = R.drawable.instagram_profile_place_holder)
         )
         Box(
             modifier = Modifier

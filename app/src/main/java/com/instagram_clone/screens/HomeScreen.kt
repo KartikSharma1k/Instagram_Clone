@@ -43,6 +43,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -59,6 +60,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.instagram_clone.DataManager
 import com.instagram_clone.R
 import com.instagram_clone.models.CommentData
 import com.instagram_clone.models.LikeData
@@ -114,7 +116,7 @@ fun HomeScreen() {
                     item {
                         UserStory(
                             modifier = Modifier.padding(vertical = 10.dp, horizontal = 10.dp),
-                            networkImage = "https://firebasestorage.googleapis.com/v0/b/instagram-clone-86a1d.appspot.com/o/profilePics%2FcHty1PmTELWVBf26U6t7O2HSGc53?alt=media&token=f459846e-a0b2-4480-9a57-855a8d68f018",
+                            networkImage = DataManager.userData.photoUrl,
                             description = "Your Story",
                             imageSize = 78
                         )
@@ -135,9 +137,20 @@ fun HomeScreen() {
                         CircularProgressIndicator(trackColor = Color.White)
                     }
                 } else {
-                    feedsViewModel.getComments(feeds[post].postId)
-                    feedsViewModel.getLikes(feeds[post].postId)
-                    FeedCell(feeds[post])
+                    FeedCell(
+                        feeds[post],
+                        liked = feeds[post].likes.contains(DataManager.userData.uid)
+                    ) {
+                        Toast.makeText(_context, "Liked", Toast.LENGTH_SHORT).show()
+                        feedsViewModel.addLike(
+                            postId = feeds[post].postId,
+                            likes = feeds[post].likes
+                        )
+                        if (feeds[post].likes.contains(DataManager.userData.uid)) feeds[post].likes.remove(
+                            DataManager.userData.uid
+                        )
+                        else feeds[post].likes.add(DataManager.userData.uid)
+                    }
                 }
             }
         }
@@ -198,7 +211,8 @@ fun UserStory(
                 modifier = Modifier
                     .clip(shape = CircleShape)
                     .size(imageSize.dp),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Crop,
+                placeholder = painterResource(id = R.drawable.instagram_profile_place_holder)
             )
 
             Box(
@@ -228,7 +242,9 @@ fun UserStory(
 
 @Composable
 fun FeedCell(
-    post: PostData
+    post: PostData,
+    liked: Boolean,
+    onLike: () -> Unit
 ) {
     Column {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -256,7 +272,7 @@ fun FeedCell(
             }
         }
 
-        PostImage(post = post)
+        PostImage(post = post, onLike = onLike, liked = liked)
     }
 }
 
@@ -289,7 +305,8 @@ fun PostHeader(
             modifier = Modifier
                 .clip(shape = CircleShape)
                 .size(imageSize.dp),
-            contentScale = ContentScale.Crop
+            contentScale = ContentScale.Crop,
+            placeholder = painterResource(id = R.drawable.instagram_profile_place_holder)
         )
         Box(
             modifier = Modifier
@@ -306,7 +323,7 @@ fun PostHeader(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun PostImage(modifier: Modifier = Modifier, post: PostData) {
+fun PostImage(modifier: Modifier = Modifier, post: PostData, onLike: () -> Unit, liked: Boolean) {
 
     val pagerState = rememberPagerState(pageCount = {
         post.photoUrl.size
@@ -317,7 +334,11 @@ fun PostImage(modifier: Modifier = Modifier, post: PostData) {
     }
 
     var isMiniLike by remember {
-        mutableStateOf(false)
+        mutableStateOf(liked)
+    }
+
+    var likeCount by remember {
+        mutableIntStateOf(post.likes.size)
     }
 
     var size = 130.dp
@@ -346,8 +367,13 @@ fun PostImage(modifier: Modifier = Modifier, post: PostData) {
                         .heightIn(max = 500.dp)
                         .pointerInput(Unit) {
                             detectTapGestures(onDoubleTap = {
+                                if (!isMiniLike) {
+                                    onLike()
+                                    ++likeCount
+                                }
                                 isLike = true
                                 isMiniLike = true
+
                             })
                         },
                     alignment = Alignment.Center,
@@ -371,13 +397,17 @@ fun PostImage(modifier: Modifier = Modifier, post: PostData) {
         PostStatsIcons(
             pagerState = pagerState,
             post.photoUrl.size, onLike = {
-                if (!isMiniLike)
+                if (!isMiniLike) {
                     isLike = !isLike
+                }
                 isMiniLike = !isMiniLike
+                if (!isMiniLike) --likeCount
+                else ++likeCount
+                onLike()
             }, isLike = isMiniLike
         )
 
-        PostStats(modifier = Modifier.padding(horizontal = 15.dp), likeCount = 10)
+        PostStats(modifier = Modifier.padding(horizontal = 15.dp), likeCount = likeCount)
 
         PostDescription(
             modifier = Modifier.padding(horizontal = 15.dp, vertical = 5.dp),
@@ -385,7 +415,7 @@ fun PostImage(modifier: Modifier = Modifier, post: PostData) {
             caption = post.description
         )
 
-        PostComment(modifier = Modifier.padding(horizontal = 15.dp), count = 10)
+        PostComment(modifier = Modifier.padding(horizontal = 15.dp), count = post.comments)
 
         val simpleDateFormat = SimpleDateFormat("dd LLLL yyyy")
         val dateTime = simpleDateFormat.format(post.datePublished.time).toString()
@@ -415,9 +445,22 @@ fun PostDescription(modifier: Modifier = Modifier, username: String, caption: St
 @Composable
 fun PostComment(modifier: Modifier = Modifier, count: Int = 12) {
     Column(modifier = modifier.padding(bottom = 5.dp)) {
-        Text(text = "View all $count comments", fontSize = 13.sp, color = Color.Gray)
 
-        Row(Modifier.padding(top = 5.dp)) {
+        when (count) {
+            0 -> {
+                Text(text = "No comments", fontSize = 13.sp, color = Color.Gray)
+            }
+
+            1 -> {
+                Text(text = "$count comment", fontSize = 13.sp, color = Color.Gray)
+            }
+
+            else -> {
+                Text(text = "View all $count comments", fontSize = 13.sp, color = Color.Gray)
+            }
+        }
+
+        /*Row(Modifier.padding(top = 5.dp)) {
             Text(
                 text = "_ritu032_ ",
                 fontSize = 13.sp,
@@ -435,7 +478,7 @@ fun PostComment(modifier: Modifier = Modifier, count: Int = 12) {
                 fontWeight = FontWeight.Bold
             )
             Text(text = "I love you ❤", fontSize = 13.sp, color = Color.White)
-        }
+        }*/
     }
 }
 
@@ -451,7 +494,7 @@ fun PostStats(
     Row(modifier = modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Box(modifier = Modifier.wrapContentWidth()) {
 
-            AsyncImage(
+/*            AsyncImage(
                 model = networkImage,
                 contentDescription = description,
                 modifier = Modifier
@@ -482,15 +525,15 @@ fun PostStats(
                     .border(width = 2.dp, color = Color.Black, shape = CircleShape),
                 contentScale = ContentScale.Crop
             )
-        }
+        }*/
 
-        Text(
+            /*        Text(
             text = "Liked by ",
             color = Color.White,
             fontSize = 13.sp,
             modifier = Modifier.padding(start = 7.dp)
-        )
-        Text(
+        )*/
+            /*Text(
             text = commenterId,
             color = Color.White,
             fontWeight = FontWeight.Bold,
@@ -500,13 +543,23 @@ fun PostStats(
             text = " and ",
             color = Color.White,
             fontSize = 13.sp,
-        )
-        Text(
-            text = "$likeCount others",
-            color = Color.White,
-            fontWeight = FontWeight.Bold,
-            fontSize = 13.sp
-        )
+        )*/
+            if (likeCount > 0) {
+
+                val count = {
+                    if (likeCount == 1) "$likeCount Like"
+                    else "$likeCount Likes"
+                }
+
+                Text(
+                    text = count(),
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp
+                )
+            }
+
+        }
     }
 }
 

@@ -25,4 +25,6 @@ interface FireStoreRepository {
 
     suspend fun getLikes(postId: String): Resource<List<LikeData>>
 
+    suspend fun addLike(postId: String, uId: String, isAvail: Boolean): Resource<Boolean>
+
 }

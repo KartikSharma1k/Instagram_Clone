@@ -106,6 +106,24 @@ fun LoginScreen(onSignUp: () -> Unit, onLogin: () -> Unit) {
     val loginViewModel: LoginViewModel = hiltViewModel()
     val loginFlow by loginViewModel.loginFlow.collectAsState()
 
+    val userFLow by loginViewModel.userFlow.collectAsState()
+
+    userFLow?.let {
+        when (it) {
+            is Resource.Success -> {
+                DataManager.userData = it.result
+            }
+
+            Resource.Loading -> {/*LOADING*/
+            }
+
+            is Resource.Failure -> {
+                it.exception.printStackTrace()
+            }
+        }
+    }
+
+
     loginFlow?.let {
         when (it) {
             is Resource.Failure -> {
@@ -124,6 +142,9 @@ fun LoginScreen(onSignUp: () -> Unit, onLogin: () -> Unit) {
 
             is Resource.Success -> {
                 LaunchedEffect(Unit) {
+
+                    loginViewModel.getUserData(it.result.uid)
+
                     if (!isCallable)
                         delay((1.5).seconds)
 
