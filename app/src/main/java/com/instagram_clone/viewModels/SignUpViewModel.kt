@@ -3,6 +3,7 @@ package com.instagram_clone.viewModels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseUser
+import com.instagram_clone.DataManager
 import com.instagram_clone.models.UserData
 import com.instagram_clone.repos.AuthRepository
 import com.instagram_clone.repos.FireStoreRepository
@@ -43,6 +44,7 @@ class SignUpViewModel @Inject constructor(
 
     fun addUser(userData: UserData) = viewModelScope.launch {
         _addUserFlow.value = Resource.Loading
+        DataManager.userData = userData
         val result = fireStoreRepository.addUser(userData)
         _addUserFlow.value = result
     }

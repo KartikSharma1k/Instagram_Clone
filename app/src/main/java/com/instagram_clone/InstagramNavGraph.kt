@@ -3,8 +3,12 @@ package com.instagram_clone
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
+import androidx.navigation.NavOptions
+import androidx.navigation.NavOptionsBuilder
+import androidx.navigation.Navigator
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.navOptions
 import com.instagram_clone.screens.AddPostScreen
 import com.instagram_clone.screens.ChatScreen
 import com.instagram_clone.screens.CommentSheet
@@ -25,7 +29,7 @@ fun InstagramNavGraph(navController: NavHostController) {
             HomeScreen()
         }
         composable(route = BottomNavRoutes.SEARCH.route) {
-            CommentSheet()
+            SearchScreen()
         }
         composable(route = BottomNavRoutes.ADDPOST.route) {
             AddPostScreen(onSuccess = { navController.navigate(BottomNavRoutes.PROFILE.route) })
@@ -41,6 +45,9 @@ fun InstagramNavGraph(navController: NavHostController) {
         }
         composable(route = BottomNavRoutes.CHAT.route) {
             ChatScreen()
+        }
+        composable(route = BottomNavRoutes.COMMENTS.route) {
+            CommentSheet(postId = "", onDismiss = {})
         }
     }
 

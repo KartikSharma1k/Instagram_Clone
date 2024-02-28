@@ -59,6 +59,7 @@ sealed class BottomNavScreens(
         iconNotSelected = R.drawable.instagram_chat_icon,
         route = BottomNavRoutes.CHAT.route
     )
+
 }
 
 enum class BottomNavRoutes(val route: String) {
@@ -68,5 +69,6 @@ enum class BottomNavRoutes(val route: String) {
     REELS("reels"),
     PROFILE("profile"),
     NOTIFICATION("notification"),
-    CHAT("chat")
+    CHAT("chat"),
+    COMMENTS("comments")
 }

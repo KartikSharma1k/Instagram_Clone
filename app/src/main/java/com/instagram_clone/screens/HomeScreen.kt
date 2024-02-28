@@ -8,6 +8,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -62,8 +63,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.instagram_clone.DataManager
 import com.instagram_clone.R
-import com.instagram_clone.models.CommentData
-import com.instagram_clone.models.LikeData
 import com.instagram_clone.models.PostData
 import com.instagram_clone.repos.Resource
 import com.instagram_clone.viewModels.FeedsViewModel
@@ -91,7 +90,7 @@ fun HomeScreen() {
     feedsFlow.value?.let {
         when (it) {
             is Resource.Success -> {
-                feeds = it.result.shuffled()
+                feeds = it.result
             }
 
             Resource.Loading -> isLoading = true;
@@ -240,12 +239,22 @@ fun UserStory(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FeedCell(
     post: PostData,
     liked: Boolean,
     onLike: () -> Unit
 ) {
+
+    var postId by remember {
+        mutableStateOf("")
+    }
+
+    var showBottomSheet by remember {
+        mutableStateOf(false)
+    }
+
     Column {
         Row(verticalAlignment = Alignment.CenterVertically) {
             PostHeader(
@@ -272,7 +281,16 @@ fun FeedCell(
             }
         }
 
-        PostImage(post = post, onLike = onLike, liked = liked)
+        PostImage(post = post, onLike = onLike, liked = liked, onComment = { id ->
+            postId = id
+            showBottomSheet = true
+        })
+
+        if (showBottomSheet) {
+            CommentSheet(postId = postId) {
+                showBottomSheet = false
+            }
+        }
     }
 }
 
@@ -323,7 +341,13 @@ fun PostHeader(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun PostImage(modifier: Modifier = Modifier, post: PostData, onLike: () -> Unit, liked: Boolean) {
+fun PostImage(
+    modifier: Modifier = Modifier,
+    post: PostData,
+    onLike: () -> Unit,
+    liked: Boolean,
+    onComment: (postId: String) -> Unit
+) {
 
     val pagerState = rememberPagerState(pageCount = {
         post.photoUrl.size
@@ -405,7 +429,9 @@ fun PostImage(modifier: Modifier = Modifier, post: PostData, onLike: () -> Unit,
                 else ++likeCount
                 onLike()
             }, isLike = isMiniLike
-        )
+        ) {
+            onComment(post.postId)
+        }
 
         PostStats(modifier = Modifier.padding(horizontal = 15.dp), likeCount = likeCount)
 
@@ -415,7 +441,11 @@ fun PostImage(modifier: Modifier = Modifier, post: PostData, onLike: () -> Unit,
             caption = post.description
         )
 
-        PostComment(modifier = Modifier.padding(horizontal = 15.dp), count = post.comments)
+        PostComment(
+            modifier = Modifier.padding(horizontal = 15.dp),
+            count = post.comments,
+            onComment = { onComment(post.postId) }
+        )
 
         val simpleDateFormat = SimpleDateFormat("dd LLLL yyyy")
         val dateTime = simpleDateFormat.format(post.datePublished.time).toString()
@@ -443,22 +473,32 @@ fun PostDescription(modifier: Modifier = Modifier, username: String, caption: St
 }
 
 @Composable
-fun PostComment(modifier: Modifier = Modifier, count: Int = 12) {
+fun PostComment(
+    modifier: Modifier = Modifier,
+    count: Int = 12,
+    onComment: (postId: String) -> Unit
+) {
     Column(modifier = modifier.padding(bottom = 5.dp)) {
 
-        when (count) {
+        val comment = when (count) {
             0 -> {
-                Text(text = "No comments", fontSize = 13.sp, color = Color.Gray)
+                "No Comments"
             }
 
             1 -> {
-                Text(text = "$count comment", fontSize = 13.sp, color = Color.Gray)
+                "$count comment"
             }
 
             else -> {
-                Text(text = "View all $count comments", fontSize = 13.sp, color = Color.Gray)
+                "View all $count comments"
             }
         }
+
+        Text(
+            text = comment,
+            fontSize = 13.sp,
+            color = Color.Gray,
+            modifier = Modifier.clickable { onComment("") })
 
         /*Row(Modifier.padding(top = 5.dp)) {
             Text(
@@ -565,7 +605,13 @@ fun PostStats(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun PostStatsIcons(pagerState: PagerState, size: Int, onLike: () -> Unit, isLike: Boolean) {
+fun PostStatsIcons(
+    pagerState: PagerState,
+    size: Int,
+    onLike: () -> Unit,
+    isLike: Boolean,
+    onComment: (postId: String) -> Unit
+) {
 
     val animatedSize by animateDpAsState(
         targetValue = if (isLike) 30.dp else 0.dp,
@@ -622,7 +668,7 @@ fun PostStatsIcons(pagerState: PagerState, size: Int, onLike: () -> Unit, isLike
                 }
             }
 
-            IconButton(onClick = {}) {
+            IconButton(onClick = { onComment("") }) {
                 Icon(
                     painter = painterResource(id = R.drawable.instagram_comment_icon),
                     contentDescription = "comment Icon",

@@ -83,7 +83,7 @@ class FireStoreRepositoryImpl @Inject constructor(val fireStore: FirebaseFiresto
     override suspend fun getFeeds(): Resource<List<PostData>> {
         return try {
             val feedResult = fireStore.collection("posts").get().await()
-            Resource.Success(feedResult.toObjects(PostData::class.java))
+            Resource.Success(feedResult.toObjects(PostData::class.java).shuffled())
         } catch (e: Exception) {
             e.printStackTrace()
             Resource.Failure(e)
