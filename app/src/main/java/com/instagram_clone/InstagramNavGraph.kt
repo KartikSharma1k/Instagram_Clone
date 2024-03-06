@@ -47,7 +47,7 @@ fun InstagramNavGraph(navController: NavHostController) {
             ChatScreen()
         }
         composable(route = BottomNavRoutes.COMMENTS.route) {
-            CommentSheet(postId = "", onDismiss = {})
+            CommentSheet(postId = "", onDismiss = {}, onComment = {}, count = 0)
         }
     }
 

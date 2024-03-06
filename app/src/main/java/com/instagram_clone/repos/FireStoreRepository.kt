@@ -6,6 +6,7 @@ import com.instagram_clone.models.CommentData
 import com.instagram_clone.models.LikeData
 import com.instagram_clone.models.PostData
 import com.instagram_clone.models.UserData
+import kotlinx.coroutines.flow.Flow
 
 interface FireStoreRepository {
 
@@ -21,10 +22,12 @@ interface FireStoreRepository {
 
     suspend fun getFeeds(): Resource<List<PostData>>
 
-    suspend fun getComments(postId: String): Resource<List<CommentData>>
+    suspend fun getComments(postId: String): Flow<List<CommentData>>
 
     suspend fun getLikes(postId: String): Resource<List<LikeData>>
 
     suspend fun addLike(postId: String, uId: String, isAvail: Boolean): Resource<Boolean>
+
+    suspend fun postComment(commentData: CommentData, postId: String, commentCount:Int): Resource<Int>
 
 }

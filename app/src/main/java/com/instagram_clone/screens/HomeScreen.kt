@@ -255,6 +255,12 @@ fun FeedCell(
         mutableStateOf(false)
     }
 
+    var commentCount by remember {
+        mutableIntStateOf(post.comments)
+    }
+
+    val context = LocalContext.current
+
     Column {
         Row(verticalAlignment = Alignment.CenterVertically) {
             PostHeader(
@@ -281,14 +287,28 @@ fun FeedCell(
             }
         }
 
-        PostImage(post = post, onLike = onLike, liked = liked, onComment = { id ->
-            postId = id
-            showBottomSheet = true
-        })
+        PostImage(
+            post = post,
+            onLike = onLike,
+            liked = liked,
+            commentCount = commentCount,
+            onComment = { id ->
+                postId = id
+                showBottomSheet = true
+            })
 
         if (showBottomSheet) {
-            CommentSheet(postId = postId) {
+            CommentSheet(
+                postId = postId,
+                count = post.comments,
+                onComment = {
+                    commentCount = it
+                    post.comments = it
+//                    Toast.makeText(context, "count - $commentCount", Toast.LENGTH_SHORT).show()
+                }
+            ) {
                 showBottomSheet = false
+//                Toast.makeText(context, "onDismiss $it", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -346,6 +366,7 @@ fun PostImage(
     post: PostData,
     onLike: () -> Unit,
     liked: Boolean,
+    commentCount: Int,
     onComment: (postId: String) -> Unit
 ) {
 
@@ -443,7 +464,7 @@ fun PostImage(
 
         PostComment(
             modifier = Modifier.padding(horizontal = 15.dp),
-            count = post.comments,
+            count = commentCount,
             onComment = { onComment(post.postId) }
         )
 
@@ -478,6 +499,7 @@ fun PostComment(
     count: Int = 12,
     onComment: (postId: String) -> Unit
 ) {
+
     Column(modifier = modifier.padding(bottom = 5.dp)) {
 
         val comment = when (count) {

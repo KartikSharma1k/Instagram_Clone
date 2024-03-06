@@ -1,23 +1,23 @@
 package com.instagram_clone.repos
 
+
 import android.util.Log
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.QuerySnapshot
-import com.google.firebase.firestore.snapshots
 import com.instagram_clone.models.CommentData
 import com.instagram_clone.models.LikeData
 import com.instagram_clone.models.PostData
 import com.instagram_clone.models.UserData
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
-import java.util.UUID
 import javax.inject.Inject
 import kotlin.math.log
+
 
 class FireStoreRepositoryImpl @Inject constructor(val fireStore: FirebaseFirestore) :
     FireStoreRepository {
@@ -90,14 +90,21 @@ class FireStoreRepositoryImpl @Inject constructor(val fireStore: FirebaseFiresto
         }
     }
 
-    override suspend fun getComments(postId: String): Resource<List<CommentData>> {
-        return try {
+    override suspend fun getComments(postId: String): Flow<List<CommentData>> {
+        return callbackFlow {
             val result =
-                fireStore.collection("posts").document(postId).collection("comments").get().await()
-            Resource.Success(result.toObjects(CommentData::class.java))
-        } catch (e: Exception) {
-            e.printStackTrace()
-            Resource.Failure(e)
+                fireStore.collection("posts").document(postId).collection("comments")
+                    .addSnapshotListener { snapshot, error ->
+                        if (error != null) {
+                            Log.d("error", "getComments: error - ${error.message}")
+                            close(error)
+                        } else {
+                            if (snapshot != null) {
+                                trySend(snapshot.toObjects(CommentData::class.java)).isSuccess
+                            }
+                        }
+                    }
+            awaitClose { result.remove() }
         }
     }
 
@@ -127,6 +134,25 @@ class FireStoreRepositoryImpl @Inject constructor(val fireStore: FirebaseFiresto
 
             Resource.Success(true)
 
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Resource.Failure(e)
+        }
+    }
+
+    override suspend fun postComment(
+        commentData: CommentData,
+        postId: String,
+        commentCount: Int
+    ): Resource<Int> {
+        return try {
+            var count = commentCount
+            ++count
+            fireStore.collection("posts").document(postId).update("comments", count).await()
+
+            fireStore.collection("posts").document(postId).collection("comments")
+                .document(commentData.commentId).set(commentData).await()
+            Resource.Success(count)
         } catch (e: Exception) {
             e.printStackTrace()
             Resource.Failure(e)

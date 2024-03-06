@@ -11,5 +11,5 @@ data class PostData(
     val datePublished: Date = Date(System.currentTimeMillis()),
     val description: String = "",
     val likes: ArrayList<String> = ArrayList(),
-    val comments: Int = 0
+    var comments: Int = 0
 )

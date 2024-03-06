@@ -38,11 +38,6 @@ class FeedsViewModel @Inject constructor(
         _feedsFlow.value = result
     }
 
-    fun getComments(postId: String) = viewModelScope.launch {
-        _commentsFlow.value = Resource.Loading
-        val result = fireStoreRepository.getComments(postId)
-        _commentsFlow.value = result
-    }
 
     fun getLikes(postId: String) = viewModelScope.launch {
         /*_likeFlow.value = Resource.Loading
