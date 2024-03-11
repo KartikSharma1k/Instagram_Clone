@@ -50,7 +50,5 @@ class CommentsViewModel @Inject constructor(private val fireStoreRepository: Fir
             commentCount
         )
         _postCommentFlow.value = result
-
     }
-
 }

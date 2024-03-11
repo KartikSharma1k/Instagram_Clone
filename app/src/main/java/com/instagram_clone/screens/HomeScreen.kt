@@ -256,7 +256,7 @@ fun FeedCell(
     }
 
     var commentCount by remember {
-        mutableIntStateOf(post.comments)
+        mutableIntStateOf(post.comments.coerceAtLeast(post.tempComments))
     }
 
     val context = LocalContext.current
@@ -291,7 +291,7 @@ fun FeedCell(
             post = post,
             onLike = onLike,
             liked = liked,
-            commentCount = commentCount,
+            commentCount = post.comments.coerceAtLeast(post.tempComments),
             onComment = { id ->
                 postId = id
                 showBottomSheet = true
@@ -300,15 +300,16 @@ fun FeedCell(
         if (showBottomSheet) {
             CommentSheet(
                 postId = postId,
-                count = post.comments,
-                onComment = {
-                    commentCount = it
-                    post.comments = it
-//                    Toast.makeText(context, "count - $commentCount", Toast.LENGTH_SHORT).show()
-                }
+                count = post.comments.coerceAtLeast(post.tempComments)
             ) {
+                commentCount = it
+                post.tempComments = it
                 showBottomSheet = false
-//                Toast.makeText(context, "onDismiss $it", Toast.LENGTH_SHORT).show()
+                /*Toast.makeText(
+                    context,
+                    "onDismiss post.comments - ${post.comments},\n post.tempComment - ${post.tempComments},\n it -  $it",
+                    Toast.LENGTH_SHORT
+                ).show()*/
             }
         }
     }
@@ -326,6 +327,7 @@ fun StoryCell(networkImage: String, caption: String, modifier: Modifier = Modifi
             fontSize = 12.sp,
             modifier = Modifier.padding(top = 10.dp)
         )
+
     }
 }
 

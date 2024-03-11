@@ -63,8 +63,7 @@ fun CommentSheet(
     sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
     postId: String,
     count: Int,
-    onComment: (count:Int) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: (commentCount: Int) -> Unit
 ) {
 
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -90,8 +89,8 @@ fun CommentSheet(
             is Resource.Success -> {
                 keyboardController?.hide()
                 comment = ""
-                onComment(it.result)
                 isLoading = false
+//                Toast.makeText(context, "success - count - $count,\n it - ${it.result}", Toast.LENGTH_SHORT).show()
             }
 
             Resource.Loading -> {
@@ -115,11 +114,12 @@ fun CommentSheet(
     commentFlow.value.let {
         comments = it!!
     }
+
     ModalBottomSheet(
         modifier = modifier
             .fillMaxSize()
             .padding(bottom = 5.dp),
-        onDismissRequest = { onDismiss() },
+        onDismissRequest = { onDismiss(comments.size) },
         sheetState = sheetState,
         containerColor = Color.Black
     ) {

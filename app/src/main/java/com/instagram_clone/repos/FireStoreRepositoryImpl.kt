@@ -148,6 +148,7 @@ class FireStoreRepositoryImpl @Inject constructor(val fireStore: FirebaseFiresto
         return try {
             var count = commentCount
             ++count
+            Log.d("commentCount", "postComment: count - $commentCount")
             fireStore.collection("posts").document(postId).update("comments", count).await()
 
             fireStore.collection("posts").document(postId).collection("comments")

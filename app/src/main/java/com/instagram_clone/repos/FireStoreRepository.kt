@@ -28,6 +28,9 @@ interface FireStoreRepository {
 
     suspend fun addLike(postId: String, uId: String, isAvail: Boolean): Resource<Boolean>
 
-    suspend fun postComment(commentData: CommentData, postId: String, commentCount:Int): Resource<Int>
-
+    suspend fun postComment(
+        commentData: CommentData,
+        postId: String,
+        commentCount: Int
+    ): Resource<Int>
 }

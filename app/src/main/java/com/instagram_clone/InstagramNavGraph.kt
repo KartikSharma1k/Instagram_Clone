@@ -23,7 +23,7 @@ import javax.inject.Inject
 @Composable
 fun InstagramNavGraph(navController: NavHostController) {
 
-    NavHost(navController = navController, startDestination = BottomNavRoutes.HOME.route) {
+    NavHost(navController = navController, startDestination = BottomNavRoutes.SEARCH.route) {
 
         composable(route = BottomNavRoutes.HOME.route) {
             HomeScreen()
@@ -46,9 +46,9 @@ fun InstagramNavGraph(navController: NavHostController) {
         composable(route = BottomNavRoutes.CHAT.route) {
             ChatScreen()
         }
-        composable(route = BottomNavRoutes.COMMENTS.route) {
-            CommentSheet(postId = "", onDismiss = {}, onComment = {}, count = 0)
-        }
+       /* composable(route = BottomNavRoutes.COMMENTS.route) {
+            CommentSheet(postId = "", onDismiss = {})
+        }*/
     }
 
 }
