@@ -1,6 +1,8 @@
 package com.instagram_clone.screens
 
+import android.util.Log
 import android.widget.Toast
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,7 +18,6 @@ import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -27,10 +28,8 @@ import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -46,22 +45,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
-import coil.compose.AsyncImagePainter
 import com.instagram_clone.DataManager
 import com.instagram_clone.R
 import com.instagram_clone.models.PostData
-import com.instagram_clone.models.SearchScreenGridData
+import com.instagram_clone.models.UserData
 import com.instagram_clone.repos.Resource
 import com.instagram_clone.viewModels.SearchViewModel
 
 @Composable
-fun SearchScreen() {
+fun SearchScreen(onItemClicked: (uid: String) -> Unit) {
 
     val searchViewModel: SearchViewModel = hiltViewModel()
-    LaunchedEffect(key1 = Unit) {
-        searchViewModel.getGridData()
-    }
     val gridFlow = searchViewModel.gridFlow.collectAsState()
+    val searchQueryFlow = searchViewModel.searchQueryFlow.collectAsState()
 
     var gridItems by remember {
         mutableStateOf(emptyList<PostData>())
@@ -71,30 +67,55 @@ fun SearchScreen() {
         mutableStateOf(false)
     }
 
+    var searchList by remember {
+        mutableStateOf(emptyList<UserData>())
+    }
+
     val context = LocalContext.current
 
     gridFlow.value?.let {
         when (it) {
             is Resource.Success -> {
                 gridItems = it.result
-                Toast.makeText(context, "${it.result.size}", Toast.LENGTH_SHORT).show()
                 isLoading = false
             }
 
             is Resource.Loading -> isLoading = true
 
             is Resource.Failure -> {
-                Toast.makeText(context, it.exception.message, Toast.LENGTH_SHORT).show()
                 isLoading = false
             }
         }
     }
 
-    Scaffold(containerColor = Color.Black, topBar = { TopAppSearchBar() }) {
+    searchQueryFlow.value?.let {
+        when (it) {
+            is Resource.Failure -> {
+                Log.d("searchData", "SearchScreen: $it")
+                Toast.makeText(context, it.exception.message, Toast.LENGTH_SHORT).show()
+            }
+
+            Resource.Loading -> {
+
+            }
+
+            is Resource.Success -> {
+                Log.d("searchData", "SearchScreen: $it")
+                searchList = it.result
+            }
+        }
+    }
+
+    Scaffold(containerColor = Color.Black, topBar = {
+        TopAppSearchBar(searchList, onSearch = {
+            searchViewModel.getSearchQuery(it)
+        }) {
+            onItemClicked(it)
+        }
+    }) {
         Box(modifier = Modifier.padding(paddingValues = it)) {
             PostGrid(gridItems, isLoading)
         }
-
     }
 }
 
@@ -123,7 +144,11 @@ fun PostGrid(gridItems: List<PostData>, isLoading: Boolean) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TopAppSearchBar() {
+fun TopAppSearchBar(
+    items: List<UserData>,
+    onSearch: (query: String) -> Unit,
+    onItemClicked: (uid: String) -> Unit
+) {
 
     var searchQuery by remember {
         mutableStateOf("")
@@ -137,8 +162,13 @@ fun TopAppSearchBar() {
         modifier = Modifier
             .fillMaxWidth(),
         query = searchQuery,
-        onQueryChange = { searchQuery = it },
-        onSearch = { isSearchActive = false },
+        onQueryChange = {
+            searchQuery = it
+            onSearch(searchQuery)
+        },
+        onSearch = {
+            onSearch(searchQuery)
+        },
         active = isSearchActive,
         onActiveChange = { isSearchActive = it },
         leadingIcon = {
@@ -173,26 +203,34 @@ fun TopAppSearchBar() {
                     modifier = Modifier.padding(vertical = 15.dp)
                 )
             }
-            items(count = 10) {
-                SearchHistoryItem()
+            items(count = items.size) {
+                SearchItem(items[it]) {
+                    onItemClicked(it)
+                }
             }
         }
     }
 }
 
 @Composable
-fun SearchHistoryItem() {
+fun SearchItem(userData: UserData, onItemClicked: (uid: String) -> Unit) {
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.padding(vertical = 8.dp)
+        modifier = Modifier
+            .padding(vertical = 8.dp)
+            .clickable {
+                onItemClicked(userData.uid)
+            }
     ) {
         AsyncImage(
-            model = DataManager.userData.photoUrl,
+            model = userData.photoUrl,
             contentDescription = "",
             modifier = Modifier
                 .size(61.dp)
                 .clip(shape = CircleShape),
+            placeholder = painterResource(id = R.drawable.instagram_profile_place_holder),
+            error = painterResource(id = R.drawable.instagram_profile_place_holder)
         )
 
         Column(
@@ -200,13 +238,13 @@ fun SearchHistoryItem() {
             verticalArrangement = Arrangement.Center
         ) {
             Text(
-                text = DataManager.userData.username,
+                text = userData.username,
                 color = Color.White,
                 fontWeight = FontWeight.Bold,
                 fontSize = 13.sp
             )
             Text(
-                text = DataManager.userData.fullName,
+                text = userData.fullName,
                 color = Color.Gray,
                 fontSize = 13.sp
             )

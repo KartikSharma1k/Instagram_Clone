@@ -29,7 +29,14 @@ fun InstagramNavGraph(navController: NavHostController) {
             HomeScreen()
         }
         composable(route = BottomNavRoutes.SEARCH.route) {
-            SearchScreen()
+            SearchScreen {
+                navController.navigate(
+                    "${BottomNavRoutes.PROFILE.route}/{uid}".replace(
+                        "{uid}",
+                        it
+                    )
+                )
+            }
         }
         composable(route = BottomNavRoutes.ADDPOST.route) {
             AddPostScreen(onSuccess = { navController.navigate(BottomNavRoutes.PROFILE.route) })
@@ -37,8 +44,11 @@ fun InstagramNavGraph(navController: NavHostController) {
         composable(route = BottomNavRoutes.REELS.route) {
             ReelsScreen()
         }
-        composable(route = BottomNavRoutes.PROFILE.route) {
-            ProfileScreen()
+        composable(route = "${BottomNavRoutes.PROFILE.route}/{uid}") { navBackStackEntry ->
+            val uid = navBackStackEntry.arguments?.getString("uid")
+            uid?.let {
+                ProfileScreen(it)
+            }
         }
         composable(route = BottomNavRoutes.NOTIFICATION.route) {
             NotificationScreen()
@@ -46,9 +56,9 @@ fun InstagramNavGraph(navController: NavHostController) {
         composable(route = BottomNavRoutes.CHAT.route) {
             ChatScreen()
         }
-       /* composable(route = BottomNavRoutes.COMMENTS.route) {
-            CommentSheet(postId = "", onDismiss = {})
-        }*/
+        /* composable(route = BottomNavRoutes.COMMENTS.route) {
+             CommentSheet(postId = "", onDismiss = {})
+         }*/
     }
 
 }

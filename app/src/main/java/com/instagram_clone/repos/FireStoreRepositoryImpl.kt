@@ -4,9 +4,11 @@ package com.instagram_clone.repos
 import android.util.Log
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.Filter
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.QuerySnapshot
+import com.google.firebase.firestore.toObjects
 import com.instagram_clone.models.CommentData
 import com.instagram_clone.models.LikeData
 import com.instagram_clone.models.PostData
@@ -154,6 +156,26 @@ class FireStoreRepositoryImpl @Inject constructor(val fireStore: FirebaseFiresto
             fireStore.collection("posts").document(postId).collection("comments")
                 .document(commentData.commentId).set(commentData).await()
             Resource.Success(count)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Resource.Failure(e)
+        }
+    }
+
+    override suspend fun getSearchQuery(query: String): Resource<List<UserData>> {
+        return try {
+            val userName =
+                fireStore.collection("users").whereGreaterThanOrEqualTo("username", query)
+                    .get().await()
+            val result =
+                fireStore.collection("users").whereGreaterThanOrEqualTo("fullName", query)
+                    .get().await()
+
+            val list = userName.toObjects(UserData::class.java)
+            list.addAll(result.toObjects(UserData::class.java))
+
+            Resource.Success(list.distinct())
+
         } catch (e: Exception) {
             e.printStackTrace()
             Resource.Failure(e)

@@ -33,4 +33,6 @@ interface FireStoreRepository {
         postId: String,
         commentCount: Int
     ): Resource<Int>
+
+    suspend fun getSearchQuery(query: String): Resource<List<UserData>>
 }

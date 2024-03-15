@@ -100,7 +100,7 @@ import com.instagram_clone.repos.Resource
 import com.instagram_clone.viewModels.ProfileViewModel
 
 @Composable
-fun ProfileScreen() {
+fun ProfileScreen(uid: String = DataManager.userData.uid) {
 
     var isLoading by remember {
         mutableStateOf(false)
