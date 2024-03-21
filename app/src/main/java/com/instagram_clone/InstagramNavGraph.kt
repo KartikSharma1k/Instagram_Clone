@@ -47,7 +47,9 @@ fun InstagramNavGraph(navController: NavHostController) {
         composable(route = "${BottomNavRoutes.PROFILE.route}/{uid}") { navBackStackEntry ->
             val uid = navBackStackEntry.arguments?.getString("uid")
             uid?.let {
-                ProfileScreen(it)
+                ProfileScreen(it) {
+                    navController.popBackStack()
+                }
             }
         }
         composable(route = BottomNavRoutes.NOTIFICATION.route) {

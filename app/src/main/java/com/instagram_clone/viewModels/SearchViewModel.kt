@@ -51,6 +51,7 @@ class SearchViewModel @Inject constructor(private val fireStoreRepository: FireS
             }
         }
 
+
         _gridFlow.value = result
 
     }

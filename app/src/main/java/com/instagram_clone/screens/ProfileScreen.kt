@@ -87,20 +87,26 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlin.coroutines.CoroutineContext
 import androidx.compose.material.TabRow
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.outlined.ArrowBack
+import androidx.compose.material3.Divider
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.google.firebase.auth.FirebaseAuth
 import com.instagram_clone.DataManager
 import com.instagram_clone.models.PostData
 import com.instagram_clone.models.UserData
 import com.instagram_clone.repos.Resource
+import com.instagram_clone.ui.theme.InstagramBlue
+import com.instagram_clone.ui.theme.InstagramDarkButton
 import com.instagram_clone.viewModels.ProfileViewModel
 
 @Composable
-fun ProfileScreen(uid: String = DataManager.userData.uid) {
+fun ProfileScreen(uid: String = DataManager.userData.uid, onBack:() -> Unit) {
 
     var isLoading by remember {
         mutableStateOf(false)
@@ -110,18 +116,41 @@ fun ProfileScreen(uid: String = DataManager.userData.uid) {
         mutableStateOf(emptyList<PostData>())
     }
 
+    var userData by remember {
+        mutableStateOf(UserData())
+    }
+
+    val isUser = DataManager.userData.uid == uid
+
     val _context = LocalContext.current
 
     val profileViewModel: ProfileViewModel = hiltViewModel()
     LaunchedEffect(Unit) {
-        profileViewModel.getPost()
+        profileViewModel.getPost(uid)
+        profileViewModel.getUserData(uid)
     }
     val postFlow = profileViewModel.postFlow.collectAsState()
 
-    postFlow.let {
-        when (it.value) {
+    val userDataFlow = profileViewModel.userDataFlow.collectAsState()
+
+    userDataFlow.value?.let {
+        when (it) {
+            is Resource.Failure -> {
+                Toast.makeText(_context, it.exception.message.toString(), Toast.LENGTH_SHORT).show()
+            }
+
+            Resource.Loading -> isLoading = true
             is Resource.Success -> {
-                postData = (it.value as Resource.Success<List<PostData>>).result
+                userData = it.result
+            }
+
+        }
+    }
+
+    postFlow.value?.let {
+        when (it) {
+            is Resource.Success -> {
+                postData = it.result
             }
 
             Resource.Loading -> isLoading = true
@@ -129,18 +158,17 @@ fun ProfileScreen(uid: String = DataManager.userData.uid) {
             is Resource.Failure -> {
                 Toast.makeText(
                     _context,
-                    (it.value as Resource.Failure).exception.message,
+                    it.exception.message,
                     Toast.LENGTH_SHORT
                 ).show()
             }
 
-            else -> {}
         }
     }
 
 
     Scaffold(
-        topBar = { CustomTopAppBar(userData = DataManager.userData) },
+        topBar = { CustomTopAppBar(userData = userData, isUser = isUser){onBack()} },
         containerColor = Color.Black
     ) {
         BoxWithConstraints(
@@ -160,36 +188,82 @@ fun ProfileScreen(uid: String = DataManager.userData.uid) {
             ) {
                 UserProfileView(
                     modifier = Modifier.padding(horizontal = 17.dp),
-                    userData = DataManager.userData,
-                    postLength = postData.size
+                    userData = userData,
+                    postLength = postData.size,
+                    isUser = isUser
                 )
-                UserPostsView(
-                    scrollState,
-                    modifier = Modifier
-                        .padding(top = 25.dp)
-                        .height(screenHeight),
-                    posts = postData
-                )
+                if (isUser || userData.type == "public" || DataManager.userData.following.contains(
+                        userData.uid
+                    )
+                ) {
+                    UserPostsView(
+                        scrollState,
+                        modifier = Modifier
+                            .padding(top = 25.dp)
+                            .height(screenHeight),
+                        posts = postData
+                    )
+                } else {
+
+                    Divider(modifier = Modifier.padding(vertical = 30.dp), thickness = 0.2.dp)
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 20.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Lock,
+                            contentDescription = "",
+                            tint = Color.White,
+                            modifier = Modifier
+                                .border(width = 1.dp, color = Color.White, shape = CircleShape)
+                                .padding(10.dp)
+                        )
+
+                        Column(
+                            modifier = Modifier.padding(start = 20.dp),
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = "This account is private",
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                fontSize = 15.sp
+                            )
+                            Text(
+                                text = "Follow this account to see their photos and videos.",
+                                color = Color.Gray,
+                                fontSize = 13.sp,
+                                modifier = Modifier.padding(top = 7.dp)
+                            )
+                        }
+                    }
+                }
             }
         }
     }
 
 }
 
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CustomTopAppBar(
     modifier: Modifier = Modifier,
-    userData: UserData
+    userData: UserData,
+    isUser: Boolean,
+    onBack: () -> Unit
 ) {
     TopAppBar(
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
 
-                IconButton(onClick = { /*TODO*/ }) {
+                IconButton(onClick = {
+                    if (!isUser) {
+                        onBack()
+                    }
+                }) {
                     Icon(
-                        imageVector = Icons.Outlined.Lock,
+                        imageVector = if (!isUser) Icons.Outlined.ArrowBack else Icons.Outlined.Lock,
                         contentDescription = "Account Status",
                         modifier = Modifier
                             .size(20.dp),
@@ -205,40 +279,46 @@ fun CustomTopAppBar(
                     overflow = TextOverflow.Ellipsis
                 )
 
-                IconButton(onClick = { /*TODO*/ }) {
-                    Icon(
-                        imageVector = Icons.Outlined.KeyboardArrowDown,
-                        contentDescription = "Change Account",
-                        modifier = Modifier
-                            .size(23.dp),
-                        tint = Color.White
+                if (isUser)
+                    IconButton(onClick = { /*TODO*/ }) {
+                        Icon(
+                            imageVector = Icons.Outlined.KeyboardArrowDown,
+                            contentDescription = "Change Account",
+                            modifier = Modifier
+                                .size(23.dp),
+                            tint = Color.White
 
-                    )
-                }
+                        )
+                    }
             }
         },
         scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(),
         colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Black),
         actions = {
-            IconButton(
-                onClick = {}
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.instagram_add_icon),
-                    contentDescription = "Add post",
-                    modifier = Modifier
-                        .padding(horizontal = 5.dp)
-                        .size(23.dp),
-                    tint = Color.White
 
+            if (isUser || userData.type == "public" || DataManager.userData.following.contains(
+                    userData.uid
                 )
-            }
+            )
+                IconButton(
+                    onClick = {}
+                ) {
+                    Icon(
+                        painter = painterResource(id = if (isUser) R.drawable.instagram_add_icon else R.drawable.instagram_notification_icon),
+                        contentDescription = "Add post",
+                        modifier = Modifier
+                            .padding(horizontal = 5.dp)
+                            .size(23.dp),
+                        tint = Color.White
+
+                    )
+                }
 
             IconButton(
                 onClick = {}
             ) {
                 Icon(
-                    imageVector = Icons.Outlined.Menu,
+                    imageVector = if (isUser) Icons.Outlined.Menu else Icons.Default.MoreVert,
                     contentDescription = "Account Options",
                     modifier = Modifier
                         .size(28.dp),
@@ -251,7 +331,12 @@ fun CustomTopAppBar(
 }
 
 @Composable
-fun UserProfileView(modifier: Modifier = Modifier, userData: UserData, postLength: Int) {
+fun UserProfileView(
+    modifier: Modifier = Modifier,
+    userData: UserData,
+    postLength: Int,
+    isUser: Boolean
+) {
 
     Column(modifier = modifier.padding(top = 20.dp)) {
 
@@ -263,19 +348,85 @@ fun UserProfileView(modifier: Modifier = Modifier, userData: UserData, postLengt
 
         ProfileNameBio(modifier = Modifier.fillMaxWidth(1f), userData = userData)
 
+        if (!isUser)
+            ProfileFollowers(modifier = Modifier.fillMaxWidth(1f), userData = userData)
+
         ProfileButtons(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 20.dp)
+                .padding(top = 20.dp),
+            userData = userData,
+            isUser = isUser
         )
 
-        FeedsSection(
-            modifier = Modifier
-                .padding(top = 20.dp)
-                .fillMaxWidth(1f)
+
+        if (isUser || userData.type == "public" || DataManager.userData.following.contains(
+                userData.uid
+            )
         )
+            FeedsSection(
+                modifier = Modifier
+                    .padding(top = 20.dp)
+                    .fillMaxWidth(1f)
+            )
 
     }
+}
+
+@Composable
+fun ProfileFollowers(modifier: Modifier, userData: UserData) {
+
+    Row(
+        modifier = modifier.padding(top = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(modifier = Modifier.wrapContentWidth()) {
+            AsyncImage(
+                model = userData.photoUrl,
+                contentDescription = "",
+                modifier = Modifier
+                    .padding(start = 20.dp)
+                    .size(28.dp)
+                    .clip(shape = CircleShape)
+                    .border(width = 1.dp, color = Color.Black, shape = CircleShape),
+                error = painterResource(id = R.drawable.instagram_profile_place_holder)
+            )
+            AsyncImage(
+                model = DataManager.userData.photoUrl,
+                contentDescription = "",
+                modifier = Modifier
+                    .size(28.dp)
+                    .clip(shape = CircleShape)
+                    .border(width = 1.dp, color = Color.Black, shape = CircleShape),
+                error = painterResource(id = R.drawable.instagram_profile_place_holder)
+            )
+        }
+
+        Text(
+            text = "Followed by ",
+            color = Color.White,
+            fontSize = 12.sp,
+            modifier = Modifier.padding(start = 5.dp)
+        )
+        Text(
+            text = "${DataManager.userData.username},${userData.username}",
+            color = Color.White,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold
+        )
+        Text(
+            text = " and ",
+            color = Color.White,
+            fontSize = 12.sp,
+        )
+        Text(
+            text = "5 others",
+            color = Color.White,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold
+        )
+    }
+
 }
 
 @Composable
@@ -322,7 +473,52 @@ fun ProfileNameBio(
 }
 
 @Composable
-fun ProfileButtons(modifier: Modifier = Modifier) {
+fun ProfileButtons(modifier: Modifier = Modifier, userData: UserData, isUser: Boolean) {
+
+    var button1 by remember {
+        mutableStateOf("")
+    }
+
+    var button1color by remember {
+        mutableStateOf(InstagramDarkButton())
+    }
+
+    var button2 by remember {
+        mutableStateOf("")
+    }
+
+    var isButton2 by remember {
+        mutableStateOf(false)
+    }
+
+    button1 = if (DataManager.userData.following.contains(userData.uid) && !isUser) {
+        button1color = InstagramDarkButton()
+        "Following"
+    } else if (userData.following.contains(DataManager.userData.uid) && !isUser) {
+        button1color = InstagramBlue()
+        "Follow Back"
+    } else if (!isUser) {
+        button1color = InstagramBlue()
+        "Follow"
+    } else {
+        button1color = InstagramDarkButton()
+        "Edit Profile"
+    }
+
+
+    button2 = if (DataManager.userData.following.contains(userData.uid) && !isUser) {
+        isButton2 = true
+        "Message"
+    } else if (userData.following.contains(DataManager.userData.uid) && !isUser) {
+        isButton2 = false
+        "Follow Back"
+    } else if (!isUser) {
+        isButton2 = false
+        "Follow"
+    } else {
+        isButton2 = true
+        "Share Profile"
+    }
 
     Row(
         modifier = modifier,
@@ -330,42 +526,44 @@ fun ProfileButtons(modifier: Modifier = Modifier) {
     ) {
         TextButton(
             onClick = {},
-            colors = ButtonDefaults.textButtonColors(containerColor = Color(0x80444444)),
+            colors = ButtonDefaults.textButtonColors(containerColor = button1color),
             shape = RoundedCornerShape(10.dp),
             modifier = Modifier
                 .weight(1f)
                 .padding(end = 5.dp)
                 .height(33.dp)
         ) {
-            Text(text = "Edit Profile", color = Color.White)
+            Text(text = button1, color = Color.White)
         }
 
-        TextButton(
-            onClick = {},
-            colors = ButtonDefaults.textButtonColors(containerColor = Color(0x80444444)),
-            shape = RoundedCornerShape(10.dp),
-            modifier = Modifier
-                .weight(1f)
-                .padding(end = 5.dp)
-                .height(33.dp)
-        ) {
-            Text(text = "Share Profile", color = Color.White)
-        }
+        if (isButton2)
+            TextButton(
+                onClick = {},
+                colors = ButtonDefaults.textButtonColors(containerColor = InstagramDarkButton()),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 5.dp)
+                    .height(33.dp)
+            ) {
+                Text(text = button2, color = Color.White)
+            }
 
-        IconButton(
-            onClick = {},
-            colors = IconButtonDefaults.iconButtonColors(containerColor = Color(0x80444444)),
-            modifier = Modifier
-                .height(33.dp)
-                .clip(RoundedCornerShape(5.dp))
-        ) {
-            Icon(
-                painter = painterResource(id = R.drawable.instagram_add_user_icon),
-                contentDescription = "Add More Person",
-                tint = Color.White,
-                modifier = Modifier.size(17.dp)
-            )
-        }
+        if (isButton2)
+            IconButton(
+                onClick = {},
+                colors = IconButtonDefaults.iconButtonColors(containerColor = Color(0x80444444)),
+                modifier = Modifier
+                    .height(33.dp)
+                    .clip(RoundedCornerShape(5.dp))
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.instagram_add_user_icon),
+                    contentDescription = "Add More Person",
+                    tint = Color.White,
+                    modifier = Modifier.size(17.dp)
+                )
+            }
     }
 }
 
@@ -436,7 +634,8 @@ fun NetworkImageBorder(imageSize: Int, networkImage: String, description: String
                 .clip(shape = CircleShape)
                 .size(imageSize.dp),
             contentScale = ContentScale.Crop,
-            placeholder = painterResource(id = R.drawable.instagram_profile_place_holder)
+            placeholder = painterResource(id = R.drawable.instagram_profile_place_holder),
+            error = painterResource(id = R.drawable.instagram_profile_place_holder)
         )
         Box(
             modifier = Modifier
@@ -554,13 +753,6 @@ fun UserPostsView(scrollState: ScrollState, modifier: Modifier = Modifier, posts
 @Composable
 fun UserFeeds(label: String, posts: List<PostData>) {
 
-    /*val gridHeight = remember(itemCount) {
-        if (itemCount % 3 == 0)
-            (itemCount / 3) * 200.dp // Adjust item height as needed
-        else
-            ((itemCount / 3) * 200.dp) + 200.dp
-    }*/
-
     LazyVerticalGrid(
         columns = GridCells.Fixed(3),
         modifier = Modifier.fillMaxSize(),
@@ -592,7 +784,6 @@ fun UserFeeds(label: String, posts: List<PostData>) {
     }
 }
 
-
 @Composable
 fun UserReels(label: String) {
     val itemCount = 20
@@ -612,7 +803,6 @@ fun UserReels(label: String) {
         }
     }
 }
-
 
 @Composable
 fun UserTags(label: String) {

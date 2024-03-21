@@ -102,7 +102,12 @@ fun BottomNavBar(navController: NavHostController) {
                 onClick = {
                     profileIcon = if (index == 4) 1 else -1
                     selectedIndex = index
-                    navController.navigate(screen.route)
+                    navController.navigate(
+                        if (index == 4) "${screen.route}/{uid}".replace(
+                            "{uid}",
+                            DataManager.userData.uid
+                        ) else screen.route
+                    )
                 },
                 icon = {
 
@@ -140,7 +145,8 @@ fun CircularProfileView(border: Int, photoUrl: String = DataManager.userData.pho
             )
             .clip(CircleShape),
         contentScale = ContentScale.Crop,
-        placeholder = painterResource(id = R.drawable.instagram_profile_place_holder)
+        placeholder = painterResource(id = R.drawable.instagram_profile_place_holder),
+        error = painterResource(id = R.drawable.instagram_profile_place_holder)
     )
 }
 

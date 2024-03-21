@@ -24,10 +24,19 @@ class ProfileViewModel @Inject constructor(
     private val _postFlow = MutableStateFlow<Resource<List<PostData>>?>(null)
     val postFlow: StateFlow<Resource<List<PostData>>?> = _postFlow
 
-    fun getPost() = viewModelScope.launch {
+    private val _userDataFlow = MutableStateFlow<Resource<UserData>?>(null)
+    val userDataFlow: StateFlow<Resource<UserData>?> = _userDataFlow
+
+    fun getPost(uid: String) = viewModelScope.launch {
         _postFlow.value = Resource.Loading
-        val result = fireStoreRepository.getPosts(authRepository.currentUser!!.uid)
+        val result = fireStoreRepository.getPosts(uid)
         _postFlow.value = result
+    }
+
+    fun getUserData(uid: String) = viewModelScope.launch {
+        _userDataFlow.value = Resource.Loading
+        val result = fireStoreRepository.getUserData(uid)
+        _userDataFlow.value = result
     }
 
 }
