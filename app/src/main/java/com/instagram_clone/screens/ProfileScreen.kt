@@ -1,6 +1,7 @@
 package com.instagram_clone.screens
 
 import android.widget.Toast
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.ScrollState
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -87,8 +89,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlin.coroutines.CoroutineContext
 import androidx.compose.material.TabRow
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.ArrowDropDown
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.collectAsState
@@ -106,7 +111,7 @@ import com.instagram_clone.ui.theme.InstagramDarkButton
 import com.instagram_clone.viewModels.ProfileViewModel
 
 @Composable
-fun ProfileScreen(uid: String = DataManager.userData.uid, onBack:() -> Unit) {
+fun ProfileScreen(uid: String = DataManager.userData.uid, onBack: () -> Unit) {
 
     var isLoading by remember {
         mutableStateOf(false)
@@ -118,6 +123,10 @@ fun ProfileScreen(uid: String = DataManager.userData.uid, onBack:() -> Unit) {
 
     var userData by remember {
         mutableStateOf(UserData())
+    }
+
+    var isFollowLoading by remember {
+        mutableStateOf(false)
     }
 
     val isUser = DataManager.userData.uid == uid
@@ -132,6 +141,10 @@ fun ProfileScreen(uid: String = DataManager.userData.uid, onBack:() -> Unit) {
     val postFlow = profileViewModel.postFlow.collectAsState()
 
     val userDataFlow = profileViewModel.userDataFlow.collectAsState()
+
+    val userFollowFlow = profileViewModel.userFollowFlow.collectAsState()
+
+    val userUnfollowFlow = profileViewModel.userUnfollowFlow.collectAsState()
 
     userDataFlow.value?.let {
         when (it) {
@@ -166,10 +179,52 @@ fun ProfileScreen(uid: String = DataManager.userData.uid, onBack:() -> Unit) {
         }
     }
 
+    userFollowFlow.value?.let {
+        when (it) {
+            is Resource.Failure -> {
+                isFollowLoading = false
+                Toast.makeText(_context, it.exception.message, Toast.LENGTH_SHORT).show()
+            }
+
+            Resource.Loading -> {
+                isFollowLoading = true
+            }
+
+            is Resource.Success -> {
+                isFollowLoading = false
+                Toast.makeText(_context, "Followed", Toast.LENGTH_SHORT).show()
+                DataManager.userData.following.add(userData.uid)
+                userData.followers.add(DataManager.userData.uid)
+            }
+        }
+    }
+
+
+    userUnfollowFlow.value?.let {
+        when (it) {
+            is Resource.Failure -> {
+//                isFollowLoading = false
+                Toast.makeText(_context, it.exception.message, Toast.LENGTH_SHORT).show()
+            }
+
+            Resource.Loading -> {
+//                isFollowLoading = true
+            }
+
+            is Resource.Success -> {
+//                isFollowLoading = false
+                Toast.makeText(_context, "Unfollowed", Toast.LENGTH_SHORT).show()
+                DataManager.userData.following.remove(userData.uid)
+                userData.followers.remove(DataManager.userData.uid)
+            }
+        }
+    }
+
 
     Scaffold(
-        topBar = { CustomTopAppBar(userData = userData, isUser = isUser){onBack()} },
-        containerColor = Color.Black
+        topBar = { CustomTopAppBar(userData = userData, isUser = isUser) { onBack() } },
+        containerColor = Color.Black,
+        modifier = Modifier.animateContentSize()
     ) {
         BoxWithConstraints(
             Modifier.padding(
@@ -190,7 +245,10 @@ fun ProfileScreen(uid: String = DataManager.userData.uid, onBack:() -> Unit) {
                     modifier = Modifier.padding(horizontal = 17.dp),
                     userData = userData,
                     postLength = postData.size,
-                    isUser = isUser
+                    isUser = isUser,
+                    isFollowLoading = isFollowLoading,
+                    onFollow = { profileViewModel.follow(userData.uid) },
+                    onUnfollow = { profileViewModel.unfollow(userData.uid) }
                 )
                 if (isUser || userData.type == "public" || DataManager.userData.following.contains(
                         userData.uid
@@ -335,7 +393,10 @@ fun UserProfileView(
     modifier: Modifier = Modifier,
     userData: UserData,
     postLength: Int,
-    isUser: Boolean
+    isUser: Boolean,
+    isFollowLoading: Boolean,
+    onFollow: () -> Unit,
+    onUnfollow: () -> Unit
 ) {
 
     Column(modifier = modifier.padding(top = 20.dp)) {
@@ -356,7 +417,10 @@ fun UserProfileView(
                 .fillMaxWidth()
                 .padding(top = 20.dp),
             userData = userData,
-            isUser = isUser
+            isUser = isUser,
+            isFollowLoading = isFollowLoading,
+            onFollow = { onFollow() },
+            onUnfollow = { onUnfollow() }
         )
 
 
@@ -367,7 +431,8 @@ fun UserProfileView(
             FeedsSection(
                 modifier = Modifier
                     .padding(top = 20.dp)
-                    .fillMaxWidth(1f)
+                    .fillMaxWidth(1f),
+                isUser = isUser
             )
 
     }
@@ -472,8 +537,16 @@ fun ProfileNameBio(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileButtons(modifier: Modifier = Modifier, userData: UserData, isUser: Boolean) {
+fun ProfileButtons(
+    modifier: Modifier = Modifier,
+    userData: UserData,
+    isUser: Boolean,
+    isFollowLoading: Boolean,
+    onFollow: () -> Unit,
+    onUnfollow: () -> Unit
+) {
 
     var button1 by remember {
         mutableStateOf("")
@@ -491,6 +564,11 @@ fun ProfileButtons(modifier: Modifier = Modifier, userData: UserData, isUser: Bo
         mutableStateOf(false)
     }
 
+    var isFollowingBottomSheet by remember {
+        mutableStateOf(false)
+    }
+
+
     button1 = if (DataManager.userData.following.contains(userData.uid) && !isUser) {
         button1color = InstagramDarkButton()
         "Following"
@@ -506,37 +584,70 @@ fun ProfileButtons(modifier: Modifier = Modifier, userData: UserData, isUser: Bo
     }
 
 
-    button2 = if (DataManager.userData.following.contains(userData.uid) && !isUser) {
-        isButton2 = true
-        "Message"
-    } else if (userData.following.contains(DataManager.userData.uid) && !isUser) {
-        isButton2 = false
-        "Follow Back"
-    } else if (!isUser) {
-        isButton2 = false
-        "Follow"
-    } else {
-        isButton2 = true
-        "Share Profile"
-    }
+    button2 =
+        if ((DataManager.userData.following.contains(userData.uid) || userData.type == "public") && !isUser) {
+            isButton2 = true
+            "Message"
+        } else if (userData.following.contains(DataManager.userData.uid) && !isUser) {
+            isButton2 = false
+            "Follow Back"
+        } else if (!isUser) {
+            isButton2 = false
+            "Follow"
+        } else {
+            isButton2 = true
+            "Share Profile"
+        }
 
     Row(
         modifier = modifier,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         TextButton(
-            onClick = {},
+            onClick = {
+                if (DataManager.userData.following.contains(userData.uid) && !isUser) {
+//                    button1color = InstagramDarkButton()
+//                    "Following"
+                    isFollowingBottomSheet = true
+                } else if (userData.following.contains(DataManager.userData.uid) && !isUser) {
+//                    button1color = InstagramBlue()
+//                    "Follow Back"
+                    onFollow()
+                } else if (!isUser) {
+//                    button1color = InstagramBlue()
+//                    "Follow"
+                    onFollow()
+                } else {
+//                    button1color = InstagramDarkButton()
+//                    "Edit Profile"
+                }
+            },
             colors = ButtonDefaults.textButtonColors(containerColor = button1color),
             shape = RoundedCornerShape(10.dp),
             modifier = Modifier
                 .weight(1f)
                 .padding(end = 5.dp)
                 .height(33.dp)
+                .wrapContentHeight()
         ) {
-            Text(text = button1, color = Color.White)
+            if (isFollowLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(17.dp),
+                    color = Color.White,
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Text(text = button1, color = Color.White)
+                if (DataManager.userData.following.contains(userData.uid) && !isUser)
+                    Icon(
+                        imageVector = Icons.Default.KeyboardArrowDown,
+                        contentDescription = "",
+                        tint = Color.White
+                    )
+            }
         }
 
-        if (isButton2)
+        if (isButton2) {
             TextButton(
                 onClick = {},
                 colors = ButtonDefaults.textButtonColors(containerColor = InstagramDarkButton()),
@@ -549,7 +660,6 @@ fun ProfileButtons(modifier: Modifier = Modifier, userData: UserData, isUser: Bo
                 Text(text = button2, color = Color.White)
             }
 
-        if (isButton2)
             IconButton(
                 onClick = {},
                 colors = IconButtonDefaults.iconButtonColors(containerColor = Color(0x80444444)),
@@ -564,11 +674,19 @@ fun ProfileButtons(modifier: Modifier = Modifier, userData: UserData, isUser: Bo
                     modifier = Modifier.size(17.dp)
                 )
             }
+        }
+    }
+
+    if (isFollowingBottomSheet) {
+        FollowingBottomSheet(userData = userData, onDismiss = { isFollowingBottomSheet = false }) {
+            onUnfollow()
+            isFollowingBottomSheet = false
+        }
     }
 }
 
 @Composable
-fun FeedsSection(modifier: Modifier = Modifier) {
+fun FeedsSection(modifier: Modifier = Modifier, isUser: Boolean) {
     Row(
         modifier = modifier,
         horizontalArrangement = Arrangement.Start,
@@ -581,30 +699,31 @@ fun FeedsSection(modifier: Modifier = Modifier) {
             modifier = Modifier.padding(end = 15.dp)
         )
 
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            IconButton(
-                onClick = {},
-                modifier = Modifier
-                    .size(70.dp)
-                    .border(
-                        border = BorderStroke(1.dp, color = Color.White),
-                        shape = CircleShape
+        if (isUser)
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                IconButton(
+                    onClick = {},
+                    modifier = Modifier
+                        .size(70.dp)
+                        .border(
+                            border = BorderStroke(1.dp, color = Color.White),
+                            shape = CircleShape
+                        )
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Add,
+                        contentDescription = "Create Feed",
+                        tint = Color.White
                     )
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Add,
-                    contentDescription = "Create Feed",
-                    tint = Color.White
+                }
+
+                Text(
+                    text = "New",
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(top = 7.dp)
                 )
             }
-
-            Text(
-                text = "New",
-                color = Color.White,
-                fontSize = 12.sp,
-                modifier = Modifier.padding(top = 7.dp)
-            )
-        }
     }
 }
 
@@ -659,7 +778,11 @@ fun ProfileStates(value: String, description: String) {
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalPagerApi::class)
 @Composable
-fun UserPostsView(scrollState: ScrollState, modifier: Modifier = Modifier, posts: List<PostData>) {
+fun UserPostsView(
+    scrollState: ScrollState,
+    modifier: Modifier = Modifier,
+    posts: List<PostData>
+) {
 
     var selectedIndex by remember {
         mutableIntStateOf(0)

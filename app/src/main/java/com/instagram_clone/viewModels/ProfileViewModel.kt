@@ -27,6 +27,12 @@ class ProfileViewModel @Inject constructor(
     private val _userDataFlow = MutableStateFlow<Resource<UserData>?>(null)
     val userDataFlow: StateFlow<Resource<UserData>?> = _userDataFlow
 
+    private val _userFollowFlow = MutableStateFlow<Resource<Boolean>?>(null)
+    val userFollowFlow: StateFlow<Resource<Boolean>?> = _userFollowFlow
+
+    private val _userUnfollowFlow = MutableStateFlow<Resource<Boolean>?>(null)
+    val userUnfollowFlow: StateFlow<Resource<Boolean>?> = _userUnfollowFlow
+
     fun getPost(uid: String) = viewModelScope.launch {
         _postFlow.value = Resource.Loading
         val result = fireStoreRepository.getPosts(uid)
@@ -37,6 +43,18 @@ class ProfileViewModel @Inject constructor(
         _userDataFlow.value = Resource.Loading
         val result = fireStoreRepository.getUserData(uid)
         _userDataFlow.value = result
+    }
+
+    fun follow(uid: String) = viewModelScope.launch {
+        _userFollowFlow.value = Resource.Loading
+        val result = fireStoreRepository.follow(uid)
+        _userFollowFlow.value = result
+    }
+
+    fun unfollow(uid: String) = viewModelScope.launch {
+        _userUnfollowFlow.value = Resource.Loading
+        val result = fireStoreRepository.unfollow(uid)
+        _userUnfollowFlow.value = result
     }
 
 }

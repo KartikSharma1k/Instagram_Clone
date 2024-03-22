@@ -12,3 +12,4 @@ val Pink40 = Color(0xFF7D5260)
 
 val InstagramBlue: () -> Color = { Color(0xFF0095F6) }
 val InstagramDarkButton: () -> Color = { Color(0x80444444) }
+val BottomSheetColor: () -> Color = {Color(0xFF141414) }

@@ -35,4 +35,9 @@ interface FireStoreRepository {
     ): Resource<Int>
 
     suspend fun getSearchQuery(query: String): Resource<List<UserData>>
+
+    suspend fun follow(uid: String): Resource<Boolean>
+
+    suspend fun unfollow(uid: String): Resource<Boolean>
+
 }

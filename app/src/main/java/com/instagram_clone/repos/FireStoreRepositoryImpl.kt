@@ -9,6 +9,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.QuerySnapshot
 import com.google.firebase.firestore.toObjects
+import com.instagram_clone.DataManager
 import com.instagram_clone.models.CommentData
 import com.instagram_clone.models.LikeData
 import com.instagram_clone.models.PostData
@@ -181,41 +182,35 @@ class FireStoreRepositoryImpl @Inject constructor(val fireStore: FirebaseFiresto
             Resource.Failure(e)
         }
     }
-}
 
-/*
-import com.google.firebase.firestore.DocumentSnapshot
-import com.google.firebase.firestore.QuerySnapshot
-import kotlinx.coroutines.channels.awaitClose
-import kotlinx.coroutines.flow.callbackFlow
+    override suspend fun follow(uid: String): Resource<Boolean> {
+        return try {
+            fireStore.collection("users").document(DataManager.userData.uid)
+                .update("following", FieldValue.arrayUnion(uid)).await()
 
-fun listenToFirestoreChanges(collection: String, document: String): Flow<DocumentSnapshot> {
-    return callbackFlow {
-        val listener = FirebaseFirestore.getInstance().collection(collection).document(document).addSnapshotListener { snapshot, error ->
-            if (error != null) {
-                close(error)
-            } else {
-                if (snapshot != null) {
-                    offer(snapshot)
-                }
-            }
+            fireStore.collection("users").document(uid)
+                .update("followers", FieldValue.arrayUnion(DataManager.userData.uid)).await()
+
+            Resource.Success(true)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Resource.Failure(e)
         }
-        awaitClose { listener.remove() }
+    }
+
+    override suspend fun unfollow(uid: String): Resource<Boolean> {
+        return try {
+            fireStore.collection("users").document(DataManager.userData.uid)
+                .update("following", FieldValue.arrayRemove(uid)).await()
+
+            fireStore.collection("users").document(uid)
+                .update("followers", FieldValue.arrayRemove(DataManager.userData.uid)).await()
+
+            Resource.Success(true)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Resource.Failure(e)
+        }
     }
 }
 
-fun listenToFirestoreChanges(collection: String): Flow<QuerySnapshot> {
-    return callbackFlow {
-        val listener = FirebaseFirestore.getInstance().collection(collection).addSnapshotListener { snapshot, error ->
-            if (error != null) {
-                close(error)
-            } else {
-                if (snapshot != null) {
-                    offer(snapshot)
-                }
-            }
-        }
-        awaitClose { listener.remove() }
-    }
-}
-*/
